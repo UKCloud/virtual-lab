@@ -1,0 +1,11 @@
+---
+# defaults file for lab-workstation
+
+lab:
+  os_tenant_name: UKCloudTrainingLab1
+  os_tenant_id: 1234567890abcdef1234567890abcdef
+  os_username: student1@training.ukcloud.com
+  os_password: "SecretPassword"
+  workstation: workstation01
+  student_username: lab1
+  student_password: student1

@@ -1,0 +1,29 @@
+---
+
+- name: Lab workstation Security Group
+  os_security_group:
+    name: labworkstation_secgroup
+    state: present
+    description: Access to the Lab Workstations
+
+- name: Lab workstation Security Group Rules - SSH
+  os_security_group_rule:
+    security_group: labworkstation_secgroup
+    protocol: tcp
+    port_range_min: 22
+    port_range_max: 22
+    remote_group: labproxy_secgroup
+
+- name: Lab workstation Security Group Rules - RDP
+  os_security_group_rule:
+    security_group: labworkstation_secgroup
+    protocol: tcp
+    port_range_min: 3389
+    port_range_max: 3389
+    remote_group: labproxy_secgroup
+
+- name: Lab workstation Security Group Rules - ICMP
+  os_security_group_rule:
+    security_group: labworkstation_secgroup
+    protocol: icmp
+    remote_group: labproxy_secgroup

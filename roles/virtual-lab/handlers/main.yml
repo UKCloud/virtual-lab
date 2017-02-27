@@ -1,0 +1,9 @@
+---
+# handlers file for virtual-lab
+
+- name: restart nginx
+  delegate_to: labproxy
+  become: true
+  service:
+    name: nginx
+    state: restarted

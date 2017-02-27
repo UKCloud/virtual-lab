@@ -1,0 +1,20 @@
+---
+- name: Create Virtual Training Lab
+  hosts: localhost
+  become: false
+  vars_files: 
+    - labconfig.yml
+  tasks:
+
+    - name: Create Lab Environment
+      include_role:
+        name: virtual-lab
+
+    - name: Deploy Student Workstations
+      include_role:
+        name: lab-workstation
+      vars:
+        lab: "{{ item }}"
+      with_items: "{{ labs }}"
+      loop_control:
+        label: "{{ item.student_username }}"

@@ -1,0 +1,40 @@
+---
+
+- name: Create the dmz network 
+  os_network:
+    name: DmzNetwork
+    state: present
+
+- name: Create the dmz subnet
+  os_subnet:
+    name: DmzSubnet
+    network_name: DmzNetwork
+    state: present
+    cidr: 10.0.0.0/24
+    dns_nameservers:
+      - 8.8.8.8
+      - 8.8.4.4
+
+- name: Create the lab network 
+  os_network:
+    name: LabNetwork
+    state: present
+
+- name: Create the lab subnet
+  os_subnet:
+    name: LabSubnet
+    network_name: LabNetwork
+    state: present
+    cidr: 10.0.1.0/24
+    dns_nameservers:
+      - 8.8.8.8
+      - 8.8.4.4
+
+- name: Create the router
+  os_router:
+    state: present
+    name: InternetGW
+    network: "{{ os_external_network }}"
+    interfaces:
+      - DmzSubnet
+      - LabSubnet

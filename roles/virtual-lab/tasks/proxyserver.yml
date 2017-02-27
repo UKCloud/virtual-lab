@@ -1,0 +1,199 @@
+---
+
+- name: Lab Proxy Security Group
+  os_security_group:
+    name: labproxy_secgroup
+    state: present
+    description: Access to the Lab Proxy Server
+
+- name: Lab Proxy Security Group Rules - SSH
+  os_security_group_rule:
+    security_group: labproxy_secgroup
+    protocol: tcp
+    port_range_min: 22
+    port_range_max: 22
+    remote_ip_prefix: 0.0.0.0/0
+
+- name: Lab Proxy Security Group Rules - ICMP
+  os_security_group_rule:
+    security_group: labproxy_secgroup
+    protocol: icmp
+    remote_ip_prefix: 0.0.0.0/0
+
+- name: Lab Proxy Security Group Rules - Guacamole
+  os_security_group_rule:
+    security_group: labproxy_secgroup
+    protocol: tcp
+    port_range_min: 8080
+    port_range_max: 8080
+    remote_ip_prefix: 0.0.0.0/0
+
+- name: Lab Proxy Security Group Rules - http
+  os_security_group_rule:
+    security_group: labproxy_secgroup
+    protocol: tcp
+    port_range_min: 80
+    port_range_max: 80
+    remote_ip_prefix: 0.0.0.0/0
+
+- name: Lab Proxy Security Group Rules - https
+  os_security_group_rule:
+    security_group: labproxy_secgroup
+    protocol: tcp
+    port_range_min: 443
+    port_range_max: 443
+    remote_ip_prefix: 0.0.0.0/0
+
+- name: Provision Lab Proxy Server
+  os_server:
+    state: present
+    name: labproxy01
+    image: "{{ proxyserver_image }}"
+    key_name: "{{ ssh_keypair }}"
+    flavor: "{{ proxyserver_flavor }}"
+    security_groups: labproxy_secgroup
+    nics:
+      - net-name: DmzNetwork
+    auto_ip: yes
+  register: labproxy
+
+- name: Add Lab Proxy Server to Inventory
+  run_once: true
+  add_host:
+    name: labproxy
+    ansible_ssh_host: "{{ labproxy.openstack.accessIPv4 }}"
+    ansible_ssh_user: "{{ labproxy_user }}"
+    ansible_ssh_private_key_file: "{{ ssh_private_key_file }}"
+  changed_when: false
+
+- set_fact:
+    labproxy_server: "{{ labproxy.openstack.name }}"
+  changed_when: false
+
+- name:  Install Epel Repo
+  delegate_to: labproxy
+  become: true
+  yum:
+    name: epel-release
+    state: installed
+
+- name: Enable nginx repo.
+  delegate_to: labproxy
+  become: true
+  template:
+    src: nginx.repo.j2
+    dest: /etc/yum.repos.d/nginx.repo
+    owner: root
+    group: root
+    mode: 0644
+
+- name:  Install packages
+  delegate_to: labproxy
+  become: true
+  yum:
+    name: "{{ item }}"
+    state: installed
+  with_items:
+    - htop
+    - iftop
+    - atop
+    - docker
+    - docker-python
+    - python2-pip
+    - mariadb-server
+    - MySQL-python
+    - nginx
+    - git
+    - openssl
+    - openssl-devel
+
+- name: upgrade all packages
+  delegate_to: labproxy
+  become: true
+  yum: 
+    name=* 
+    state=latest
+
+- name: Install python libraries
+  delegate_to: labproxy
+  become: true
+  pip:
+    name: "{{ item }}"
+  with_items:
+    - docker-py
+    - docker-compose
+
+- name: Start MariaDB
+  delegate_to: labproxy
+  become: true
+  service:
+    name: mariadb
+    state: started
+    enabled: yes
+
+- name: Create a new database for Guacamole
+  delegate_to: labproxy
+  become: true
+  mysql_db:
+    name: "{{ db_name }}"
+    state: present 
+
+- name: Create database user for Guacamole
+  delegate_to: labproxy
+  become: true
+  mysql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_password }}"
+    host: "%"
+    priv: '*.*:ALL'
+    state: present
+
+
+- name: Start docker
+  delegate_to: labproxy
+  become: true
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Create the guacd container
+  delegate_to: labproxy
+  become: true
+  docker_container:
+    name: lab-guacd
+    image: guacamole/guacd
+    published_ports:
+      - 0.0.0.0:4822:4822
+
+# docker run --rm guacamole/guacamole /opt/guacamole/bin/initdb.sh --mysql > initdb.sql
+# - debug:
+#     var: labproxy
+
+- name: Create volume to mount to the guacamole container
+  delegate_to: labproxy
+  become: true
+  file:
+    path: "{{ lab_content_dir }}"
+    state: directory
+    mode: 0755
+    recurse: yes
+
+- name: Create the guacamole container
+  delegate_to: labproxy
+  become: true
+  docker_container:
+    name: lab-guacamole
+    image: guacamole/guacamole
+    links:
+      - "lab-guacd:guacd"
+    published_ports:
+      - 0.0.0.0:8080:8080
+    volumes:
+      - "{{ lab_content_dir }}:/lab/content"
+    env:
+      MYSQL_HOSTNAME: "{{ labproxy.openstack.private_v4 }}"
+      MYSQL_DATABASE: "{{ db_name }}"
+      MYSQL_USER: "{{ db_user }}"
+      MYSQL_PASSWORD: "{{ db_password }}"
+

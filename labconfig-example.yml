@@ -1,0 +1,38 @@
+---
+
+lab_domain: training.example.com
+
+ssh_keypair: MyKeyPair
+ssh_private_key_file: ~/.ssh/user.pem
+os_auth_url: https://cor00005.cni.ukcloud.com:13000/v2.0
+os_region: regionOne
+
+workstation_image: windows-2012r2-LTS
+workstation_flavor: t1.small
+
+db_name: guacamole_db
+db_user: guacamole_user
+db_password: 12345
+
+labs:
+  - os_tenant_name: TrainingLab1
+    os_tenant_id: 1234567890abcdef1234567890abcde1
+    os_username: student1@training.example.com
+    os_password: "SecretPassword"
+    workstation: workstation01
+    student_username: lab1
+    student_password: student1
+  - os_tenant_name: TrainingLab2
+    os_tenant_id: 1234567890abcdef1234567890abcde2
+    os_username: student2@training.example.com
+    os_password: "SecretPassword"
+    workstation: workstation02
+    student_username: lab2
+    student_password: student2
+  - os_tenant_name: TrainingLab3
+    os_tenant_id: 1234567890abcdef1234567890abcde3
+    os_username: student3@training.example.com
+    os_password: "SecretPassword"
+    workstation: workstation03
+    student_username: lab3
+    student_password: student3

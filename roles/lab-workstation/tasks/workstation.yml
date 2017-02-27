@@ -1,0 +1,44 @@
+---
+
+- name: Provision Lab Workstation Server {{ lab.workstation }}
+  delegate_to: localhost
+  run_once: true
+  os_server:
+    state: present
+    name: "{{ lab.workstation }}"
+    image: "{{ workstation_image }}"
+    key_name: "{{ ssh_keypair }}"
+    flavor: "{{ workstation_flavor }}"
+    security_groups: labworkstation_secgroup
+    nics:
+      - net-name: LabNetwork
+    auto_ip: no
+  register: workstation
+
+# workstation.results.openstack.adminPass is only populated when the instance is firsts created.
+# To reliably retrieve the adminPass, we need to call:
+#   nova get-password workstation01 ~/.ssh/user.pem 2>/dev/null
+- name: Retrieve adminPass for {{ lab.workstation }}
+  delegate_to: localhost
+  shell: nova get-password {{ lab.workstation }} {{ ssh_private_key_file }} 2>/dev/null
+  register: adminPass
+
+- set_fact:
+    workstation_password: "{{ adminPass.stdout }}"
+  changed_when: false
+
+- name: Update Guacamole connection configuration for {{ lab.workstation }}
+  delegate_to: labproxy
+  become: true
+  template:
+    src: workstation.sql.j2
+    dest: "/tmp/{{ lab.workstation }}.sql"
+    mode: 0644
+
+- name: Import Guacamole configs for {{ lab.workstation }}
+  delegate_to: labproxy
+  become: true
+  mysql_db:
+    state: import
+    name: all
+    target: /tmp/{{ lab.workstation }}.sql

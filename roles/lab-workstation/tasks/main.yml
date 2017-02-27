@@ -1,0 +1,8 @@
+---
+# tasks file for lab-workstation
+
+- name: Workstation Build
+  include: workstation.yml
+
+- name: Student Setup
+  include: user-setup.yml
