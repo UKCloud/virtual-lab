@@ -1,6 +1,8 @@
 ---
 
 lab_domain: training.example.com
+trainer_userid: trainer
+trainer_password: Sup3rS3cr3t
 
 ssh_keypair: MyKeyPair
 ssh_private_key_file: ~/.ssh/user.pem
