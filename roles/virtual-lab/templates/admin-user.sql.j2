@@ -1,0 +1,22 @@
+use {{ db_name }};
+
+-- Generate salt
+SET @salt = UNHEX(SHA2(UUID(), 256));
+
+-- Rename the default admin user
+-- DELETE FROM guacamole_user WHERE username = 'guacadmin';
+
+-- Create user and hash password with salt
+INSERT INTO guacamole_user (username, password_salt, password_hash, password_date)
+     VALUES ('{{ trainer_userid }}', @salt, UNHEX(SHA2(CONCAT('{{ trainer_password }}', HEX(@salt)), 256)), NOW())
+     ON DUPLICATE KEY UPDATE password_salt=password_salt, password_hash=password_hash, password_date=NOW();
+
+-- Determine the user_id
+set @userId = (SELECT user_id FROM guacamole_user WHERE username = '{{ trainer_userid }}');
+
+INSERT IGNORE INTO guacamole_system_permission (user_id,  permission)
+    VALUES (@userId, 'CREATE_CONNECTION'),
+            (@userId, 'CREATE_CONNECTION_GROUP'),
+            (@userId, 'CREATE_SHARING_PROFILE'),
+            (@userId, 'CREATE_USER'),
+            (@userId, 'ADMINISTER');

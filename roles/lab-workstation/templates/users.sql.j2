@@ -1,0 +1,26 @@
+use {{ db_name }};
+
+-- Generate salt
+SET @salt = UNHEX(SHA2(UUID(), 256));
+
+-- Create user and hash password with salt
+INSERT INTO guacamole_user (username, password_salt, password_hash, password_date)
+     VALUES ('{{ lab.student_username }}', @salt, UNHEX(SHA2(CONCAT('{{ lab.student_password }}', HEX(@salt)), 256)), NOW())
+     ON DUPLICATE KEY UPDATE password_salt=password_salt, password_hash=password_hash, password_date=NOW();
+
+-- Determine the connection_id
+set @connGroupId = (SELECT connection_group_id FROM guacamole_connection_group WHERE connection_group_name = '{{ lab.os_tenant_name }}' and parent_id IS NULL);
+set @connId = (SELECT connection_id FROM guacamole_connection WHERE connection_name = '{{ lab.workstation }}' AND parent_id = @connGroupId);
+set @ubuntuId = (SELECT connection_id FROM guacamole_connection WHERE connection_name = '{{ lab.ubuntu_ws }}' AND parent_id = @connGroupId);
+
+-- Determine the user_id
+set @userId = (SELECT user_id FROM guacamole_user WHERE username = '{{ lab.student_username }}');
+
+INSERT IGNORE INTO guacamole_connection_group_permission (user_id, connection_group_id, permission)
+    VALUES (@userId, @connGroupId, 'READ');
+
+INSERT IGNORE INTO guacamole_connection_permission (user_id,connection_id,permission)
+    VALUES (@userId, @connId, 'READ');
+
+INSERT IGNORE INTO guacamole_connection_permission (user_id,connection_id,permission)
+    VALUES (@userId, @ubuntuId, 'READ');

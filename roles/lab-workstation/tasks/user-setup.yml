@@ -1,2 +1,17 @@
 ---
 
+- name: Update Guacamole user configuration for {{ lab.workstation }}
+  delegate_to: labproxy
+  become: true
+  template:
+    src: users.sql.j2
+    dest: "/tmp/{{ lab.workstation }}-users.sql"
+    mode: 0644
+
+- name: Import Guacamole user configs for {{ lab.workstation }}
+  delegate_to: labproxy
+  become: true
+  mysql_db:
+    state: import
+    name: all
+    target: /tmp/{{ lab.workstation }}-users.sql

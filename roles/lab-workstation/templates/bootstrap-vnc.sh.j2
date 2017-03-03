@@ -1,0 +1,62 @@
+#!/bin/bash
+#
+
+apt-get update
+apt install -y xfce4 xfce4-goodies tightvncserver chromium-browser python-pip
+
+pip install python-openstackclient
+pip install python-heatclient
+
+mkdir -p /home/ubuntu/.vnc/
+echo "{{ lab.student_password }}" | vncpasswd -f > /home/ubuntu/.vnc/passwd
+chown -R ubuntu.ubuntu /home/ubuntu/.vnc
+chmod 0600 /home/ubuntu/.vnc/passwd
+
+cat > /home/ubuntu/.vnc/xstartup <<-EOF
+#!/bin/bash
+xrdb $HOME/.Xresources
+startxfce4 &
+EOF
+
+chmod +x /home/ubuntu/.vnc/xstartup
+
+cat > /etc/systemd/system/vncserver@.service <<-EOF
+[Unit]
+Description=Start TightVNC server at startup
+After=syslog.target network.target
+
+[Service]
+Type=forking
+User=ubuntu
+PAMName=login
+PIDFile=/home/ubuntu/.vnc/%H:%i.pid
+ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1
+ExecStart=/usr/bin/vncserver -depth 24 -geometry 1280x800 :%i
+ExecStop=/usr/bin/vncserver -kill :%i
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable vncserver@1.service
+systemctl start vncserver@1
+
+cat > /home/ubuntu/openrc <<-EOF
+export OS_AUTH_URL={{ os_auth_url }}
+export OS_TENANT_ID={{ lab.os_tenant_id }}
+export OS_TENANT_NAME="{{ lab.os_tenant_name }}"
+export OS_USERNAME="{{ lab.os_username }}"
+export OS_PASSWORD="{{ lab.os_password }}"
+export OS_REGION_NAME={{ os_region }}
+EOF
+
+cat >> /home/ubuntu/.bashrc <<-EOF
+. ~/openrc
+EOF
+
+wget -O /tmp/terraform.zip https://releases.hashicorp.com/terraform/0.8.8/terraform_0.8.8_linux_amd64.zip
+wget -O /tmp/packer.zip https://releases.hashicorp.com/packer/0.12.3/packer_0.12.3_linux_amd64.zip
+cd /usr/local/bin
+unzip /tmp/terraform.zip
+unzip /tmp/packer.zip

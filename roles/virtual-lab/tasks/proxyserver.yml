@@ -166,9 +166,29 @@
     published_ports:
       - 0.0.0.0:4822:4822
 
+# TODO: Automate the initial setup of the mysql database.
+# This command will output the SQL to initialise the database,
+# but needs some scafolding to make it idempotent.
+#
 # docker run --rm guacamole/guacamole /opt/guacamole/bin/initdb.sh --mysql > initdb.sql
-# - debug:
-#     var: labproxy
+
+# Lock down the default admin users and replace with our own 'trainer' admin.
+- name: Create 'trainer' admin account
+  delegate_to: labproxy
+  become: true
+  template:
+    src: admin-user.sql.j2
+    dest: "/tmp/admin-user.sql"
+    mode: 0644
+
+- name: Import Guacamole configs for {{ trainer_userid }} admin user
+  delegate_to: labproxy
+  become: true
+  mysql_db:
+    state: import
+    name: all
+    target: /tmp/admin-user.sql
+    
 
 - name: Create volume to mount to the guacamole container
   delegate_to: labproxy
@@ -190,7 +210,7 @@
     published_ports:
       - 0.0.0.0:8080:8080
     volumes:
-      - "{{ lab_content_dir }}:/lab/content"
+      - "{{ lab_content_dir }}:/srv"
     env:
       MYSQL_HOSTNAME: "{{ labproxy.openstack.private_v4 }}"
       MYSQL_DATABASE: "{{ db_name }}"

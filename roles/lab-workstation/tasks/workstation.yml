@@ -1,8 +1,30 @@
 ---
+- name: Create user-data script for {{ lab.ubuntu_ws }}
+  template:
+    src: bootstrap-vnc.sh.j2
+    dest: "/tmp/{{ lab.ubuntu_ws }}.bootstrap-vnc.sh"
+    mode: 0644
+
+- name: Load user-data script for {{ lab.ubuntu_ws }}
+  shell: "cat /tmp/{{ lab.ubuntu_ws }}.bootstrap-vnc.sh"
+  changed_when: false
+  register: user_data
+  
+- name: Provision Lab Ubuntu Workstation Server {{ lab.ubuntu_ws }}
+  os_server:
+    state: present
+    name: "{{ lab.ubuntu_ws }}"
+    image: "{{ ubuntu_image }}"
+    key_name: "{{ ssh_keypair }}"
+    flavor: "{{ ubuntu_flavor }}"
+    security_groups: labworkstation_secgroup
+    nics:
+      - net-name: LabNetwork
+    auto_ip: no
+    userdata: "{{ user_data.stdout }}"
+  register: ubuntu
 
 - name: Provision Lab Workstation Server {{ lab.workstation }}
-  delegate_to: localhost
-  run_once: true
   os_server:
     state: present
     name: "{{ lab.workstation }}"
@@ -19,7 +41,6 @@
 # To reliably retrieve the adminPass, we need to call:
 #   nova get-password workstation01 ~/.ssh/user.pem 2>/dev/null
 - name: Retrieve adminPass for {{ lab.workstation }}
-  delegate_to: localhost
   shell: nova get-password {{ lab.workstation }} {{ ssh_private_key_file }} 2>/dev/null
   register: adminPass
 

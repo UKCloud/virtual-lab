@@ -1,15 +1,47 @@
 use {{ db_name }};
 
-delete from guacamole_connection where connection_name='{{ lab.workstation }}';
+-- Create connection group
+INSERT INTO guacamole_connection_group (connection_group_name, type)
+    SELECT '{{ lab.os_tenant_name }}', 'ORGANIZATIONAL' 
+    FROM guacamole_connection_group
+    WHERE connection_group_name = '{{ lab.os_tenant_name }}'
+    HAVING COUNT(connection_group_name) = 0;
 
--- Create connection
-INSERT INTO guacamole_connection (connection_name, protocol) VALUES ('{{ lab.workstation }}', 'rdp');
+-- Determine the connection_group_id
+set @connGroupId = (SELECT connection_group_id FROM guacamole_connection_group WHERE connection_group_name = '{{ lab.os_tenant_name }}' and parent_id IS NULL);
+
+-- Create connection if it doesnt already exist
+INSERT INTO guacamole_connection (connection_name, parent_id, protocol, max_connections, max_connections_per_user)
+    SELECT '{{ lab.workstation }}', @connGroupId, 'rdp', '2', '1'
+    FROM guacamole_connection
+    WHERE connection_name = '{{ lab.workstation }}' 
+      AND parent_id = @connGroupId
+    HAVING COUNT(connection_name) = 0;
 
 -- Determine the connection_id
-set @connId = (SELECT connection_id FROM guacamole_connection WHERE connection_name = '{{ lab.workstation }}' AND parent_id IS NULL);
+set @connId = (SELECT connection_id FROM guacamole_connection WHERE connection_name = '{{ lab.workstation }}' AND parent_id = @connGroupId);
 
 -- Add parameters to the new connection
-INSERT INTO guacamole_connection_parameter VALUES (@connId, 'hostname', '{{ workstation.openstack.private_v4 }}');
-INSERT INTO guacamole_connection_parameter VALUES (@connId, 'port', '3389');
-INSERT INTO guacamole_connection_parameter VALUES (@connId, 'username', 'administrator');
-INSERT INTO guacamole_connection_parameter VALUES (@connId, 'password', '{{ workstation_password }}');
+REPLACE INTO guacamole_connection_parameter (connection_id,parameter_name,parameter_value) 
+    VALUES (@connId, 'hostname', '{{ workstation.openstack.private_v4 }}'),
+            (@connId, 'port', '3389'),
+            (@connId, 'username', 'administrator'),
+            (@connId, 'password', '{{ workstation_password }}'),
+            (@connId, 'create-drive-path', 'true'),
+            (@connId, 'drive-path', '/'),
+            (@connId, 'enable-drive', 'true');
+
+-- Setup Ubuntu connection as well
+INSERT INTO guacamole_connection (connection_name, parent_id, protocol, max_connections, max_connections_per_user)
+    SELECT '{{ lab.ubuntu_ws }}', @connGroupId, 'vnc', '2', '1'
+    FROM guacamole_connection
+    WHERE connection_name = '{{ lab.ubuntu_ws }}' 
+      AND parent_id = @connGroupId
+    HAVING COUNT(connection_name) = 0;
+
+set @ubuntuId = (SELECT connection_id FROM guacamole_connection WHERE connection_name = '{{ lab.ubuntu_ws }}' AND parent_id = @connGroupId);
+
+REPLACE INTO guacamole_connection_parameter (connection_id,parameter_name,parameter_value) 
+    VALUES (@ubuntuId, 'hostname', '{{ ubuntu.openstack.private_v4 }}'),
+            (@ubuntuId, 'port', '5901'),
+            (@ubuntuId, 'password', '{{ lab.student_password }}');
