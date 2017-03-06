@@ -26,10 +26,10 @@ REPLACE INTO guacamole_connection_parameter (connection_id,parameter_name,parame
     VALUES (@connId, 'hostname', '{{ workstation.openstack.private_v4 }}'),
             (@connId, 'port', '3389'),
             (@connId, 'username', 'administrator'),
-            (@connId, 'password', '{{ workstation_password }}'),
-            (@connId, 'create-drive-path', 'true'),
-            (@connId, 'drive-path', '/'),
-            (@connId, 'enable-drive', 'true');
+            (@connId, 'password', '{{ workstation_password }}');
+--            (@connId, 'create-drive-path', 'true'),
+--            (@connId, 'drive-path', '/'),
+--            (@connId, 'enable-drive', 'true');
 
 -- Setup Ubuntu connection as well
 INSERT INTO guacamole_connection (connection_name, parent_id, protocol, max_connections, max_connections_per_user)

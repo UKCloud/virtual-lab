@@ -24,6 +24,17 @@
     userdata: "{{ user_data.stdout }}"
   register: ubuntu
 
+- name: Create user-data script for {{ lab.workstation }}
+  template:
+    src: bootstrap-win2012.cmd.j2
+    dest: "/tmp/{{ lab.workstation }}.bootstrap-win2012.cmd"
+    mode: 0644
+
+- name: Load user-data script for {{ lab.workstation }}
+  shell: "cat /tmp/{{ lab.workstation }}.bootstrap-win2012.cmd"
+  changed_when: false
+  register: win2012_user_data
+
 - name: Provision Lab Workstation Server {{ lab.workstation }}
   os_server:
     state: present
@@ -35,6 +46,7 @@
     nics:
       - net-name: LabNetwork
     auto_ip: no
+    userdata: "{{ win2012_user_data.stdout }}"
   register: workstation
 
 # workstation.results.openstack.adminPass is only populated when the instance is firsts created.
@@ -43,6 +55,9 @@
 - name: Retrieve adminPass for {{ lab.workstation }}
   shell: nova get-password {{ lab.workstation }} {{ ssh_private_key_file }} 2>/dev/null
   register: adminPass
+  until: adminPass.stdout != ""
+  retries: 10
+  delay: 15
 
 - set_fact:
     workstation_password: "{{ adminPass.stdout }}"

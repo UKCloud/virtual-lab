@@ -1,0 +1,20 @@
+<powershell>
+$x = @"
+set OS_AUTH_URL={{ os_auth_url }}
+set OS_TENANT_ID={{ lab.os_tenant_id }}
+set OS_TENANT_NAME={{ lab.os_tenant_name }}
+set OS_USERNAME={{ lab.os_username }}
+set OS_PASSWORD={{ lab.os_password }}
+set OS_REGION_NAME={{ os_region }}
+"@
+$openrc = "C:\Users\Administrator\openrc.cmd"
+
+new-item -path $openrc -type file -force -value $x
+
+[Environment]::SetEnvironmentVariable("OS_AUTH_URL", "{{ os_auth_url }}", "Machine")
+[Environment]::SetEnvironmentVariable("OS_TENANT_ID", "{{ lab.os_tenant_id }}", "Machine")
+[Environment]::SetEnvironmentVariable("OS_TENANT_NAME", "{{ lab.os_tenant_name }}", "Machine")
+[Environment]::SetEnvironmentVariable("OS_USERNAME", "{{ lab.os_username }}", "Machine")
+[Environment]::SetEnvironmentVariable("OS_PASSWORD", "{{ lab.os_password }}", "Machine")
+[Environment]::SetEnvironmentVariable("OS_REGION_NAME", "{{ os_region }}", "Machine")
+</powershell>

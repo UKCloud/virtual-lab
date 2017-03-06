@@ -4,7 +4,7 @@ use {{ db_name }};
 SET @salt = UNHEX(SHA2(UUID(), 256));
 
 -- Rename the default admin user
--- DELETE FROM guacamole_user WHERE username = 'guacadmin';
+DELETE FROM guacamole_user WHERE username = 'guacadmin';
 
 -- Create user and hash password with salt
 INSERT INTO guacamole_user (username, password_salt, password_hash, password_date)
